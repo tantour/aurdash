@@ -146,6 +146,16 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
             }
             Panel::Manager => {
                 app.switch_to_explorer();
+                let current = app.search_input.value().to_string();
+                if current.len() >= 2 && current != app.last_query {
+                    app.search_state = LoadState::Loading;
+                    app.last_query = current.clone();
+                    return Action::Search(current);
+                } else if current.is_empty() && !app.results.is_empty() {
+                    app.results.clear();
+                    app.selected_pkg = None;
+                    app.search_state = LoadState::Idle;
+                }
             }
             Panel::ManagerUninstallPopup => {
                 app.active_panel = Panel::Manager;
@@ -185,6 +195,16 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
                     }
                     KeyCode::Tab => {
                         app.switch_to_explorer();
+                        let current = app.search_input.value().to_string();
+                        if current.len() >= 2 && current != app.last_query {
+                            app.search_state = LoadState::Loading;
+                            app.last_query = current.clone();
+                            return Action::Search(current);
+                        } else if current.is_empty() && !app.results.is_empty() {
+                            app.results.clear();
+                            app.selected_pkg = None;
+                            app.search_state = LoadState::Idle;
+                        }
                         return Action::Continue;
                     }
                     _ => {}
@@ -209,6 +229,16 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
             match key.code {
                 KeyCode::Tab => {
                     app.switch_to_explorer();
+                    let current = app.search_input.value().to_string();
+                    if current.len() >= 2 && current != app.last_query {
+                        app.search_state = LoadState::Loading;
+                        app.last_query = current.clone();
+                        return Action::Search(current);
+                    } else if current.is_empty() && !app.results.is_empty() {
+                        app.results.clear();
+                        app.selected_pkg = None;
+                        app.search_state = LoadState::Idle;
+                    }
                 }
                 KeyCode::Char('/') => {
                     app.manager_search_active = true;
