@@ -1,12 +1,25 @@
-# AURDash 🧭
+# <div align="center">AURDash 🧭</div>
 
-*The AUR helper that actually helps*
+<div align="center">
+  <img width="500" alt="AURDash Preview" src="https://github.com/user-attachments/assets/b2087cc7-cded-4fc7-908e-9cd255e63d68" />
+  
+  <br><br>
+
+  <em>The AUR helper that actually helps</em>
+
+  <br><br>
+
+  ### ⚡ Install instantly
+      yay -S aurdash
+</div>
 
 ---
 
 ## ✨ Overview
 
-**AURDash** is a fast, keyboard-driven terminal UI for managing both **official Arch repositories** and the **AUR** in one place. It focuses on **speed, clarity, and safety**, giving you real-time search, package management tools, and a built-in **security scoring system** to help you make smarter install decisions.
+**AURDash** is a fast, keyboard-driven **TUI** for managing both **official Arch repositories** and the **AUR** in one unified interface.
+
+It’s built around three things: **speed, clarity, and safety** — combining real-time search, powerful package management, and a built-in **security scoring system** so you can install with confidence.
 
 ---
 
@@ -14,95 +27,95 @@
 
 ### 🔎 Instant Search (Search-as-you-type)
 
-* Real-time package lookup from:
+- Real-time results from:
+  - Official repositories  
+  - AUR  
+- Fuzzy matching for lightning-fast discovery  
+- No delays. No friction. Just type.
 
-  * Official repositories
-  * AUR
-* Fuzzy matching for fast discovery
-* Zero waiting, zero friction
+---
 
 ### 🛡️ Security Score System
 
-Each AUR package is analyzed and given a **security score** based on:
+Every AUR package gets a **security score** based on:
 
-* PKGBUILD inspection
-* Maintainer reputation
-* Update frequency
-* Community signals (votes, popularity)
-* Optional AI-assisted review
+- PKGBUILD inspection  
+- Maintainer reputation  
+- Update frequency  
+- Community signals (votes, popularity)  
+- Optional AI-assisted analysis  
 
-> Helps you avoid sketchy or unsafe packages without digging manually.
+> Avoid sketchy packages without manually digging through everything.
 
 ---
 
 ### 📦 Package Management
 
-Manage your system without leaving the TUI:
+Control your system without leaving the TUI:
 
-* Install packages (official + AUR)
-* Remove packages (with dependency awareness)
-* Reinstall packages
-* Upgrade system (full sync)
-* View detailed package info
+- Install (official + AUR)  
+- Remove (with dependency awareness)  
+- Reinstall broken packages  
+- Full system upgrades  
+- Detailed package insights  
 
 ---
 
 ### 📋 Installed Packages Dashboard
 
-* Clean overview of everything installed
-* Quickly:
-
-  * Remove unused packages
-  * Reinstall broken ones
+- Clean, structured overview of installed packages  
+- Quickly:
+  - Remove unused packages  
+  - Reinstall problematic ones  
 
 ---
 
 ### ⚡ Performance Focused
 
-* Written for speed and responsiveness
-* Minimal resource usage
-* Async operations for smooth UX
+- Built for speed and responsiveness  
+- Minimal resource usage  
+- Async operations for smooth UX  
 
 ---
 
 ### 🎨 Clean TUI Experience
 
-* Keyboard-first navigation
-* Smooth transitions
-* Minimal clutter, maximum clarity
+- Keyboard-first navigation  
+- Smooth, fluid interactions  
+- Minimal clutter, maximum clarity  
 
 ---
 
 ## 🧠 Why AURDash?
 
-Typical AUR helpers focus only on installation.
-**AURDash goes further:**
+Most AUR helpers stop at installation.
 
-* Makes package discovery **interactive**
-* Adds **security awareness**
-* Gives you **full control** over installed packages
-* Feels like a **modern dashboard**, not a script wrapper
+**AURDash doesn’t.**
+
+- Makes package discovery **interactive**  
+- Adds real **security awareness**  
+- Gives full control over your system  
+- Feels like a **modern dashboard**, not a wrapper script  
 
 ---
 
 ## 🛠️ Installation
 
-```bash
-git clone https://github.com/yourusername/aurdash.git
-cd aurdash
-makepkg -si
-```
+    git clone https://github.com/yourusername/aurdash.git
+    cd aurdash
+    makepkg -si
 
+---
 
 ## 🔐 Security Philosophy
 
-AURDash **does NOT blindly trust AUR packages**.
+AURDash **does not blindly trust** AUR packages.
 
 Instead, it:
 
-* Surfaces risk clearly
-* Encourages informed decisions
-* Keeps you in control
+- Highlights potential risks  
+- Encourages informed decisions  
+- Keeps you in control  
 
 > You should always review PKGBUILDs — AURDash just makes it easier.
 
@@ -111,7 +124,13 @@ Instead, it:
 ## 🤝 Contributing
 
 Pull requests are welcome.
-If you have ideas for improving security analysis or UX, open an issue.
+
+Got ideas for:
+- Better security analysis  
+- UX improvements  
+- New features  
+
+Open an issue or PR.
 
 ---
 
@@ -123,12 +142,13 @@ MIT License
 
 ## ⚠️ Disclaimer
 
-AURDash provides **guidance**, not guarantees.
+AURDash provides **guidance, not guarantees**.  
 Always verify packages before installing from the AUR.
 
 ---
 
 ## 💡 Final Note
 
-AURDash is built for people who love control, speed, and clean tooling.
-If you live in the terminal, this should feel like home.
+AURDash is built for people who care about **control, speed, and clean tooling**.
+
+If you live in the terminal — this will feel right at home.
