@@ -1,7 +1,7 @@
 use crate::app::{App, Panel};
 use crate::ui::theme::*;
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
@@ -10,16 +10,7 @@ use ratatui::{
 use crate::ui::centered_rect;
 use unicode_width::UnicodeWidthStr;
 
-pub fn render_manager(f: &mut Frame, app: &App, area: Rect) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(3), Constraint::Min(1)])
-        .split(area);
-
-    let is_active = app.active_panel == Panel::Manager;
-    let border_color = if is_active { BLUE } else { SURFACE1 };
-    
-    // 1. Search Bar
+pub fn render_search_bar(f: &mut Frame, app: &App, area: Rect) {
     let query = app.manager_search_input.value();
     let is_search_active = app.manager_search_active;
     
@@ -46,17 +37,21 @@ pub fn render_manager(f: &mut Frame, app: &App, area: Rect) {
             .style(Style::default().bg(ratatui::style::Color::Reset)),
     );
 
-    f.render_widget(search, chunks[0]);
+    f.render_widget(search, area);
 
     if is_search_active {
-        let cursor_x = chunks[0].x + 1 + ICON_SEARCH.width() as u16 + query.width() as u16;
-        let cursor_y = chunks[0].y + 1;
-        if cursor_x < chunks[0].x + chunks[0].width - 1 {
+        let cursor_x = area.x + 1 + ICON_SEARCH.width() as u16 + query.width() as u16;
+        let cursor_y = area.y + 1;
+        if cursor_x < area.x + area.width - 1 {
             f.set_cursor_position((cursor_x, cursor_y));
         }
     }
+}
 
-    // 2. List
+pub fn render_manager(f: &mut Frame, app: &App, area: Rect) {
+    let is_active = app.active_panel == Panel::Manager;
+    let border_color = if is_active { BLUE } else { SURFACE1 };
+
     let items: Vec<ListItem> = app.manager_filtered_pkgs.iter().enumerate().map(|(i, pkg)| {
         let is_selected = i == app.manager_selected_idx;
         let prefix = if is_selected { "▶ " } else { "  " };
@@ -85,7 +80,7 @@ pub fn render_manager(f: &mut Frame, app: &App, area: Rect) {
 
     let mut state = ListState::default();
     if !app.manager_filtered_pkgs.is_empty() {
-        let visible = chunks[1].height.saturating_sub(2) as usize;
+        let visible = area.height.saturating_sub(2) as usize;
         let offset = if app.manager_selected_idx >= visible {
             app.manager_selected_idx - visible + 1
         } else {
@@ -96,7 +91,7 @@ pub fn render_manager(f: &mut Frame, app: &App, area: Rect) {
         *state.offset_mut() = offset;
     }
 
-    f.render_stateful_widget(list, chunks[1], &mut state);
+    f.render_stateful_widget(list, area, &mut state);
 }
 
 pub fn render_uninstall_popup(f: &mut Frame, app: &App, area: Rect) {

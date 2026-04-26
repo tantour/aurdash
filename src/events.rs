@@ -183,6 +183,11 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
                         app.manager_search_active = false;
                         return Action::Continue;
                     }
+                    KeyCode::Tab => {
+                        app.manager_search_active = false;
+                        app.active_panel = Panel::Search;
+                        return Action::Continue;
+                    }
                     _ => {}
                 }
                 

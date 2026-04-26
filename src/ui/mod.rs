@@ -73,7 +73,11 @@ fn render_header(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(logo, layout[0]);
 
     // Search bar
-    search::render_search_bar(f, app, layout[1]);
+    if matches!(app.active_panel, Panel::Manager | Panel::ManagerUninstallPopup) {
+        manager::render_search_bar(f, app, layout[1]);
+    } else {
+        search::render_search_bar(f, app, layout[1]);
+    }
 }
 
 fn render_main(f: &mut Frame, app: &App, area: Rect) {
@@ -100,9 +104,9 @@ fn render_main(f: &mut Frame, app: &App, area: Rect) {
 
 fn render_statusbar(f: &mut Frame, app: &App, area: Rect) {
     let hints = match app.active_panel {
-        Panel::Search => " [Tab] manager  [?] help  [Ctrl+C] quit",
-        Panel::Manager | Panel::ManagerUninstallPopup => " [Tab] search  [u] uninstall  [i/r] reinstall  [?] help  [q] quit",
-        _ => " [/] search  [Tab] manager  [i] install  [p] PKGBUILD  [c] comments  [?] help  [q] quit",
+        Panel::Search => " [Tab] Manager  [?] help  [Ctrl+C] quit",
+        Panel::Manager | Panel::ManagerUninstallPopup => " [Tab] Explorer  [u] uninstall  [i/r] reinstall  [?] help  [Ctrl+C] quit",
+        _ => " [/] search  [Tab] Manager  [i] install  [p] PKGBUILD  [c] comments  [?] help  [Ctrl+C] quit",
     };
 
     let mut spans = vec![

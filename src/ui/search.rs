@@ -43,7 +43,7 @@ pub fn render_search_bar(f: &mut Frame, app: &App, area: Rect) {
         String::new()
     };
 
-    let title = format!("Search{}", count_hint);
+    let title = format!("Explorer Search{}", count_hint);
 
     let search = Paragraph::new(input_text).block(
         Block::default()
