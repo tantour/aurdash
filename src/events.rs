@@ -145,7 +145,7 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
                 app.active_panel = Panel::Search;
             }
             Panel::Manager => {
-                app.active_panel = Panel::Search;
+                app.switch_to_explorer();
             }
             Panel::ManagerUninstallPopup => {
                 app.active_panel = Panel::Manager;
@@ -184,8 +184,7 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
                         return Action::Continue;
                     }
                     KeyCode::Tab => {
-                        app.manager_search_active = false;
-                        app.active_panel = Panel::Search;
+                        app.switch_to_explorer();
                         return Action::Continue;
                     }
                     _ => {}
@@ -209,7 +208,7 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
 
             match key.code {
                 KeyCode::Tab => {
-                    app.active_panel = Panel::Search;
+                    app.switch_to_explorer();
                 }
                 KeyCode::Char('/') => {
                     app.manager_search_active = true;
@@ -269,7 +268,7 @@ fn handle_search_key(app: &mut App, key: &KeyEvent) -> Action {
             return Action::Continue;
         }
         KeyCode::Tab => {
-            app.active_panel = Panel::Manager;
+            app.switch_to_manager();
             return Action::Continue;
         }
         _ => {}
@@ -319,7 +318,7 @@ fn handle_results_key(app: &mut App, key: &KeyEvent) -> Action {
             app.active_panel = Panel::Search;
         }
         KeyCode::Tab => {
-            app.active_panel = Panel::Manager;
+            app.switch_to_manager();
         }
         KeyCode::Char('i') => {
             if let Some(name) = app.selected_pkg_name().map(String::from) {
@@ -359,7 +358,7 @@ fn handle_detail_key(app: &mut App, key: &KeyEvent) -> Action {
             app.active_panel = Panel::Results;
         }
         KeyCode::Tab => {
-            app.active_panel = Panel::Manager;
+            app.switch_to_manager();
         }
         KeyCode::Char('i') => {
             if let Some(name) = app.selected_pkg_name().map(String::from) {

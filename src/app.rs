@@ -257,4 +257,27 @@ impl App {
     pub fn scroll_pkgbuild_up(&mut self) {
         self.pkgbuild_scroll = self.pkgbuild_scroll.saturating_sub(1);
     }
+
+    pub fn switch_to_manager(&mut self) {
+        self.active_panel = Panel::Manager;
+        self.manager_search_active = true;
+        self.manager_search_input = self.search_input.clone();
+        
+        let query = self.manager_search_input.value().to_lowercase();
+        self.manager_filtered_pkgs = self.manager_pkgs
+            .iter()
+            .filter(|p| p.to_lowercase().contains(&query))
+            .cloned()
+            .collect();
+        self.manager_selected_idx = 0;
+    }
+
+    pub fn switch_to_explorer(&mut self) {
+        self.active_panel = Panel::Search;
+        self.search_input = self.manager_search_input.clone();
+        self.manager_search_active = false;
+        // The actual API search will be triggered automatically if the 
+        // user types or hits enter, or we can just leave it as is 
+        // until they press something, which is standard.
+    }
 }
