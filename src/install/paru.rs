@@ -7,7 +7,6 @@ pub enum InstallStatus {
     NotFound,
 }
 
-/// Invoke paru to install a package. Returns the combined output.
 pub async fn install_package(pkg_name: &str) -> Result<(bool, String)> {
     let output = Command::new("paru")
         .args(["--noconfirm", "-S", pkg_name])
@@ -16,12 +15,28 @@ pub async fn install_package(pkg_name: &str) -> Result<(bool, String)> {
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    let combined = format!("{}{}", stdout, stderr);
     let success = output.status.success();
-    Ok((success, combined))
+    Ok((success, format!("{}{}", stdout, stderr)))
 }
 
-/// Check if paru is installed
+pub async fn uninstall_package(pkg_name: &str, recursive: bool) -> Result<(bool, String)> {
+    let mut args = vec!["--noconfirm", "-R"];
+    if recursive {
+        args = vec!["--noconfirm", "-Rs"];
+    }
+    args.push(pkg_name);
+
+    let output = Command::new("paru")
+        .args(args)
+        .output()
+        .await?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let success = output.status.success();
+    Ok((success, format!("{}{}", stdout, stderr)))
+}
+
 pub async fn paru_available() -> bool {
     Command::new("paru")
         .arg("--version")
@@ -31,7 +46,6 @@ pub async fn paru_available() -> bool {
         .unwrap_or(false)
 }
 
-/// Get list of installed AUR packages via paru
 pub async fn list_installed() -> Result<Vec<String>> {
     let output = Command::new("paru")
         .args(["-Qm"])
@@ -39,14 +53,9 @@ pub async fn list_installed() -> Result<Vec<String>> {
         .await?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let pkgs = stdout
-        .lines()
-        .filter_map(|l| l.split_whitespace().next().map(String::from))
-        .collect();
-    Ok(pkgs)
+    Ok(stdout.lines().filter_map(|l| l.split_whitespace().next().map(String::from)).collect())
 }
 
-/// Get available upgrades via paru
 pub async fn list_upgrades() -> Result<Vec<String>> {
     let output = Command::new("paru")
         .args(["-Qua"])
@@ -54,9 +63,5 @@ pub async fn list_upgrades() -> Result<Vec<String>> {
         .await?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let pkgs = stdout
-        .lines()
-        .filter_map(|l| l.split_whitespace().next().map(String::from))
-        .collect();
-    Ok(pkgs)
+    Ok(stdout.lines().filter_map(|l| l.split_whitespace().next().map(String::from)).collect())
 }

@@ -3,6 +3,7 @@ pub mod search;
 pub mod detail;
 pub mod comments;
 pub mod help;
+pub mod manager;
 
 use crate::app::{App, LoadState, Panel};
 use ratatui::{
@@ -42,6 +43,7 @@ pub fn render(f: &mut Frame, app: &App) {
         Panel::Help => help::render_help(f, size),
         Panel::InstallLog => render_install_log(f, app, size),
         Panel::Pkgbuild => render_pkgbuild_overlay(f, app, size),
+        Panel::ManagerUninstallPopup => manager::render_uninstall_popup(f, app, size),
         _ => {}
     }
 
@@ -75,6 +77,11 @@ fn render_header(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_main(f: &mut Frame, app: &App, area: Rect) {
+    if matches!(app.active_panel, Panel::Manager | Panel::ManagerUninstallPopup) {
+        manager::render_manager(f, app, area);
+        return;
+    }
+
     let layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(38), Constraint::Min(1)])
@@ -92,10 +99,10 @@ fn render_main(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_statusbar(f: &mut Frame, app: &App, area: Rect) {
-    let hints = if app.active_panel == Panel::Search {
-        " [Tab] results  [?] help  [Ctrl+C] quit"
-    } else {
-        " [/] search  [i] install  [p] PKGBUILD  [c] comments  [?] help  [q] quit"
+    let hints = match app.active_panel {
+        Panel::Search => " [Tab] manager  [?] help  [Ctrl+C] quit",
+        Panel::Manager | Panel::ManagerUninstallPopup => " [Tab] search  [u] uninstall  [i/r] reinstall  [?] help  [q] quit",
+        _ => " [/] search  [Tab] manager  [i] install  [p] PKGBUILD  [c] comments  [?] help  [q] quit",
     };
 
     let mut spans = vec![

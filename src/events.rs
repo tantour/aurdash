@@ -14,6 +14,8 @@ pub enum Action {
     LoadDetail(PkgEntry),
     /// Install selected package
     Install(String),
+    /// Uninstall selected package
+    Uninstall(String, bool),
     /// Quit
     Quit,
 }
@@ -69,14 +71,34 @@ pub fn handle_app_event(app: &mut App, event: AppEvent) -> Action {
             app.install_state = if success {
                 LoadState::Done
             } else {
-                LoadState::Error("Install failed".to_string())
+                LoadState::Error("Operation failed".to_string())
             };
             let msg = if success {
-                "Installation succeeded!".to_string()
+                "Operation succeeded!".to_string()
             } else {
-                "Installation failed. Check install log.".to_string()
+                "Operation failed. Check install log.".to_string()
             };
             app.set_status(msg, !success);
+
+            if success {
+                let mut new_installed = std::collections::HashSet::new();
+                if let Ok(output) = std::process::Command::new("pacman").arg("-Qq").output() {
+                    if let Ok(s) = String::from_utf8(output.stdout) {
+                        for line in s.lines() {
+                            new_installed.insert(line.to_string());
+                        }
+                    }
+                }
+                app.installed_pkgs = new_installed;
+                app.manager_pkgs = app.installed_pkgs.iter().cloned().collect();
+                app.manager_pkgs.sort();
+                let query = app.manager_search_input.value().to_lowercase();
+                app.manager_filtered_pkgs = app.manager_pkgs
+                    .iter()
+                    .filter(|p| p.to_lowercase().contains(&query))
+                    .cloned()
+                    .collect();
+            }
         }
         AppEvent::ParuAvailable(avail) => {
             app.paru_available = avail;
@@ -122,6 +144,12 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
             Panel::Detail | Panel::Results => {
                 app.active_panel = Panel::Search;
             }
+            Panel::Manager => {
+                app.active_panel = Panel::Search;
+            }
+            Panel::ManagerUninstallPopup => {
+                app.active_panel = Panel::Manager;
+            }
             Panel::Search => {}
         }
         return Action::Continue;
@@ -148,6 +176,82 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
             app.active_panel = Panel::Results;
             Action::Continue
         }
+        Panel::Manager => {
+            if app.manager_search_active {
+                match key.code {
+                    KeyCode::Enter | KeyCode::Down | KeyCode::Esc => {
+                        app.manager_search_active = false;
+                        return Action::Continue;
+                    }
+                    _ => {}
+                }
+                
+                let prev = app.manager_search_input.value().to_string();
+                app.manager_search_input.handle_event(&Event::Key(*key));
+                let current = app.manager_search_input.value().to_string();
+                
+                if current != prev {
+                    let query = current.to_lowercase();
+                    app.manager_filtered_pkgs = app.manager_pkgs
+                        .iter()
+                        .filter(|p| p.to_lowercase().contains(&query))
+                        .cloned()
+                        .collect();
+                    app.manager_selected_idx = 0;
+                }
+                return Action::Continue;
+            }
+
+            match key.code {
+                KeyCode::Tab => {
+                    app.active_panel = Panel::Search;
+                }
+                KeyCode::Char('/') => {
+                    app.manager_search_active = true;
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    app.manager_selected_idx = app.manager_selected_idx.saturating_sub(1);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if app.manager_selected_idx + 1 < app.manager_filtered_pkgs.len() {
+                        app.manager_selected_idx += 1;
+                    }
+                }
+                KeyCode::Char('u') => {
+                    if !app.manager_filtered_pkgs.is_empty() {
+                        app.active_panel = Panel::ManagerUninstallPopup;
+                    }
+                }
+                KeyCode::Char('r') | KeyCode::Char('i') => {
+                    if let Some(pkg) = app.manager_filtered_pkgs.get(app.manager_selected_idx) {
+                        app.active_panel = Panel::InstallLog;
+                        app.install_state = LoadState::Loading;
+                        app.install_log.clear();
+                        return Action::Install(pkg.clone());
+                    }
+                }
+                _ => {}
+            }
+            Action::Continue
+        }
+        Panel::ManagerUninstallPopup => {
+            match key.code {
+                KeyCode::Esc | KeyCode::Char('q') => {
+                    app.active_panel = Panel::Manager;
+                }
+                KeyCode::Char('n') | KeyCode::Char('r') => {
+                    if let Some(pkg) = app.manager_filtered_pkgs.get(app.manager_selected_idx) {
+                        let recursive = key.code == KeyCode::Char('r');
+                        app.active_panel = Panel::InstallLog;
+                        app.install_state = LoadState::Loading;
+                        app.install_log.clear();
+                        return Action::Uninstall(pkg.clone(), recursive);
+                    }
+                }
+                _ => {}
+            }
+            Action::Continue
+        }
     }
 }
 
@@ -160,9 +264,7 @@ fn handle_search_key(app: &mut App, key: &KeyEvent) -> Action {
             return Action::Continue;
         }
         KeyCode::Tab => {
-            if !app.results.is_empty() {
-                app.active_panel = Panel::Results;
-            }
+            app.active_panel = Panel::Manager;
             return Action::Continue;
         }
         _ => {}
@@ -211,6 +313,9 @@ fn handle_results_key(app: &mut App, key: &KeyEvent) -> Action {
         KeyCode::Char('/') | KeyCode::Char('s') => {
             app.active_panel = Panel::Search;
         }
+        KeyCode::Tab => {
+            app.active_panel = Panel::Manager;
+        }
         KeyCode::Char('i') => {
             if let Some(name) = app.selected_pkg_name().map(String::from) {
                 app.active_panel = Panel::InstallLog;
@@ -247,6 +352,9 @@ fn handle_detail_key(app: &mut App, key: &KeyEvent) -> Action {
         }
         KeyCode::Left | KeyCode::Char('h') => {
             app.active_panel = Panel::Results;
+        }
+        KeyCode::Tab => {
+            app.active_panel = Panel::Manager;
         }
         KeyCode::Char('i') => {
             if let Some(name) = app.selected_pkg_name().map(String::from) {
@@ -379,6 +487,11 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
                     .unwrap_or(0);
                 app.scroll_pkgbuild_down(lines);
             }
+            Panel::Manager => {
+                if app.manager_selected_idx + 1 < app.manager_filtered_pkgs.len() {
+                    app.manager_selected_idx += 1;
+                }
+            }
             Panel::InstallLog => {
                 if app.install_scroll + 1 < app.install_log.len() {
                     app.install_scroll += 1;
@@ -396,12 +509,34 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
                 app.comments_scroll = app.selected_comment_idx;
             }
             Panel::Pkgbuild => app.scroll_pkgbuild_up(),
+            Panel::Manager => {
+                app.manager_selected_idx = app.manager_selected_idx.saturating_sub(1);
+            }
             Panel::InstallLog => {
                 app.install_scroll = app.install_scroll.saturating_sub(1);
             }
             _ => {}
         },
         MouseEventKind::Down(MouseButton::Left) => {
+            if app.active_panel == Panel::Manager {
+                if mouse.row > 4 { // List starts below search bar
+                    // Approximate the offset by assuming ~30 items fit.
+                    // This is rough, but since we don't track true terminal size in App state, 
+                    // we'll try our best.
+                    let visible = 30;
+                    let offset = if app.manager_selected_idx >= visible {
+                        app.manager_selected_idx - visible + 1
+                    } else {
+                        0
+                    };
+                    let clicked_idx = offset + (mouse.row as usize).saturating_sub(5);
+                    if clicked_idx < app.manager_filtered_pkgs.len() {
+                        app.manager_selected_idx = clicked_idx;
+                    }
+                }
+                return Action::Continue;
+            }
+
             if mouse.column < 38 && mouse.row > 2 {
                 let clicked_idx = app.results_scroll + (mouse.row as usize).saturating_sub(3);
                 if clicked_idx < app.results.len() {

@@ -11,6 +11,8 @@ pub enum Panel {
     Pkgbuild,
     InstallLog,
     Help,
+    Manager,
+    ManagerUninstallPopup,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,6 +70,9 @@ pub struct App {
     pub pkgbuild_state: LoadState,
     pub install_state: LoadState,
 
+    // --- Installed packages caching ---
+    pub installed_pkgs: std::collections::HashSet<String>,
+
     // --- Install log ---
     pub install_log: Vec<String>,
     pub install_scroll: usize,
@@ -84,10 +89,30 @@ pub struct App {
     pub selected_comment_idx: usize,
     pub comment_popup_open: bool,
     pub comment_popup_scroll: usize,
+
+    // --- Manager ---
+    pub manager_pkgs: Vec<String>,
+    pub manager_filtered_pkgs: Vec<String>,
+    pub manager_search_input: Input,
+    pub manager_search_active: bool,
+    pub manager_selected_idx: usize,
+    pub manager_scroll: usize,
 }
 
 impl App {
     pub fn new() -> Self {
+        let mut installed_pkgs = std::collections::HashSet::new();
+        if let Ok(output) = std::process::Command::new("pacman").arg("-Qq").output() {
+            if let Ok(s) = String::from_utf8(output.stdout) {
+                for line in s.lines() {
+                    installed_pkgs.insert(line.to_string());
+                }
+            }
+        }
+
+        let mut manager_pkgs: Vec<String> = installed_pkgs.iter().cloned().collect();
+        manager_pkgs.sort();
+
         Self {
             search_input: Input::default(),
             last_query: String::new(),
@@ -105,6 +130,11 @@ impl App {
             comments_state: LoadState::Idle,
             pkgbuild_state: LoadState::Idle,
             install_state: LoadState::Idle,
+            manager_filtered_pkgs: manager_pkgs.clone(),
+            manager_pkgs,
+            manager_search_input: Input::default(),
+            manager_search_active: false,
+            installed_pkgs,
             install_log: Vec::new(),
             install_scroll: 0,
             active_panel: Panel::Search,
@@ -116,6 +146,8 @@ impl App {
             selected_comment_idx: 0,
             comment_popup_open: false,
             comment_popup_scroll: 0,
+            manager_selected_idx: 0,
+            manager_scroll: 0,
         }
     }
 

@@ -107,7 +107,7 @@ pub fn render_results_list(f: &mut Frame, app: &App, area: Rect) {
             };
 
             // Installed indicator
-            let installed_span = if pkg.is_installed() {
+            let installed_span = if app.installed_pkgs.contains(pkg.name()) {
                 Span::styled(ICON_CHECK, Style::default().fg(GREEN))
             } else {
                 Span::raw(" ")

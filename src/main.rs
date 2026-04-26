@@ -124,6 +124,19 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Re
                                     }
                                 });
                             }
+                            Action::Uninstall(name, recursive) => {
+                                let tx = tx.clone();
+                                tokio::spawn(async move {
+                                    match install::uninstall_package(&name, recursive).await {
+                                        Ok((success, log)) => {
+                                            let _ = tx.send(AppEvent::InstallDone(success, log)).await;
+                                        }
+                                        Err(e) => {
+                                            let _ = tx.send(AppEvent::Error(e.to_string())).await;
+                                        }
+                                    }
+                                });
+                            }
                             Action::Continue => {}
                         }
                     }
