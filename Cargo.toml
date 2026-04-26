@@ -1,0 +1,54 @@
+[package]
+name = "aurdash"
+version = "0.1.0"
+edition = "2021"
+description = "AUR TUI helper with security scanning, fuzzy search, and comments"
+
+[[bin]]
+name = "aurdash"
+path = "src/main.rs"
+
+[dependencies]
+# TUI
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+tui-input = "0.10"
+
+# Async
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+futures = "0.3"
+
+# AUR
+raur = { version = "8", features = ["rustls"] }
+
+# HTTP / scraping
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+scraper = "0.21"
+
+# Fuzzy search
+nucleo = "0.5"
+
+# Security scanning
+aur-scanner-core = "0.1.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Misc
+chrono = "0.4"
+dirs = "5"
+toml = "0.8"
+unicode-width = "0.1"
+tempfile = "3.27.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
