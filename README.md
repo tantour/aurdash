@@ -10,7 +10,7 @@
   <br><br>
 
   ### ⚡ Install instantly
-      yay -S aurdash
+      yay -S aurdash-bin
 </div>
 
 ---
