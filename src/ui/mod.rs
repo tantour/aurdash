@@ -44,6 +44,11 @@ pub fn render(f: &mut Frame, app: &App) {
         Panel::Pkgbuild => render_pkgbuild_overlay(f, app, size),
         _ => {}
     }
+
+    // Comment popup — renders on top of everything when open
+    if app.comment_popup_open && !app.comments.is_empty() {
+        comments::render_comment_popup(f, app, size);
+    }
 }
 
 fn render_header(f: &mut Frame, app: &App, area: Rect) {

@@ -93,8 +93,14 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
         return Action::Quit;
     }
 
-    // Escape - go back / close overlay
+    // Escape - close popup first, then go back / close overlay
     if key.code == KeyCode::Esc {
+        // If comment popup is open, close it and stay on Comments panel
+        if app.comment_popup_open {
+            app.comment_popup_open = false;
+            app.comment_popup_scroll = 0;
+            return Action::Continue;
+        }
         match app.active_panel {
             Panel::Help | Panel::InstallLog | Panel::Pkgbuild => {
                 app.active_panel = Panel::Results;
@@ -248,10 +254,44 @@ fn handle_detail_key(app: &mut App, key: &KeyEvent) -> Action {
 }
 
 fn handle_comments_key(app: &mut App, key: &KeyEvent) -> Action {
+    // If popup is open, handle popup navigation
+    if app.comment_popup_open {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') => {
+                app.comment_popup_open = false;
+                app.comment_popup_scroll = 0;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                app.comment_popup_scroll = app.comment_popup_scroll.saturating_sub(1);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                // Max scroll is bounded in render, just increment freely
+                app.comment_popup_scroll += 1;
+            }
+            _ => {}
+        }
+        return Action::Continue;
+    }
+
+    // Normal comment list navigation
     match key.code {
-        KeyCode::Up | KeyCode::Char('k') => app.scroll_comments_up(),
-        KeyCode::Down | KeyCode::Char('j') => app.scroll_comments_down(),
-        KeyCode::Left | KeyCode::Char('h') => {
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.comment_select_prev();
+            // sync scroll so selected stays visible (render handles it, but
+            // we also keep comments_scroll in sync for mouse scroll baseline)
+            app.comments_scroll = app.selected_comment_idx;
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.comment_select_next();
+            app.comments_scroll = app.selected_comment_idx;
+        }
+        KeyCode::Enter | KeyCode::Char(' ') => {
+            if !app.comments.is_empty() {
+                app.comment_popup_open = true;
+                app.comment_popup_scroll = 0;
+            }
+        }
+        KeyCode::Left | KeyCode::Char('h') | KeyCode::Esc => {
             app.active_panel = Panel::Detail;
         }
         _ => {}
@@ -295,6 +335,20 @@ fn handle_installlog_key(app: &mut App, key: &KeyEvent) -> Action {
 }
 
 fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
+    // If comment popup is open, mouse scrolls the popup
+    if app.comment_popup_open {
+        match mouse.kind {
+            MouseEventKind::ScrollDown => {
+                app.comment_popup_scroll += 1;
+            }
+            MouseEventKind::ScrollUp => {
+                app.comment_popup_scroll = app.comment_popup_scroll.saturating_sub(1);
+            }
+            _ => {}
+        }
+        return Action::Continue;
+    }
+
     match mouse.kind {
         MouseEventKind::ScrollDown => match app.active_panel {
             Panel::Results | Panel::Detail => {
@@ -303,7 +357,10 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
                     return Action::LoadDetail(name);
                 }
             }
-            Panel::Comments => app.scroll_comments_down(),
+            Panel::Comments => {
+                app.comment_select_next();
+                app.comments_scroll = app.selected_comment_idx;
+            }
             Panel::Pkgbuild => {
                 let lines = app
                     .pkgbuild_text
@@ -326,7 +383,10 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
                     return Action::LoadDetail(name);
                 }
             }
-            Panel::Comments => app.scroll_comments_up(),
+            Panel::Comments => {
+                app.comment_select_prev();
+                app.comments_scroll = app.selected_comment_idx;
+            }
             Panel::Pkgbuild => app.scroll_pkgbuild_up(),
             Panel::InstallLog => {
                 app.install_scroll = app.install_scroll.saturating_sub(1);
@@ -334,7 +394,7 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
             _ => {}
         },
         MouseEventKind::Down(MouseButton::Left) => {
-            // Click on result list area (approximate: rows 2..N-3, col 0..30)
+            // Click on result list area (approximate: rows 2..N-3, col 0..38)
             if mouse.column < 38 && mouse.row > 2 {
                 let clicked_idx = app.results_scroll + (mouse.row as usize).saturating_sub(3);
                 if clicked_idx < app.results.len() {
@@ -344,6 +404,19 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
                     if let Some(name) = app.selected_pkg.as_ref().map(|p| p.name.clone()) {
                         return Action::LoadDetail(name);
                     }
+                }
+            }
+
+            // Click in comments panel (right side, lower half — approximate row > terminal_height*0.6+3)
+            // We detect any click with col >= 38 in the lower portion as a comment click
+            if app.active_panel == Panel::Comments && mouse.column >= 38 {
+                // Each comment card is roughly 3-4 lines tall; approximate which comment was clicked
+                // by mapping click row relative to comments panel top
+                // The panel starts after the header (row 3) and takes lower ~40% of height
+                // We'll just open popup for whichever comment is currently selected (safe approach)
+                if !app.comments.is_empty() {
+                    app.comment_popup_open = true;
+                    app.comment_popup_scroll = 0;
                 }
             }
         }

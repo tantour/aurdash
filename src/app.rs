@@ -77,6 +77,11 @@ pub struct App {
     pub should_quit: bool,
     pub status_msg: Option<String>,
     pub status_is_error: bool,
+
+    // --- Comment selection / popup ---
+    pub selected_comment_idx: usize,
+    pub comment_popup_open: bool,
+    pub comment_popup_scroll: usize,
 }
 
 impl App {
@@ -106,6 +111,9 @@ impl App {
             should_quit: false,
             status_msg: None,
             status_is_error: false,
+            selected_comment_idx: 0,
+            comment_popup_open: false,
+            comment_popup_scroll: 0,
         }
     }
 
@@ -137,6 +145,9 @@ impl App {
         self.pkgbuild_state = LoadState::Loading;
         self.comments_scroll = 0;
         self.pkgbuild_scroll = 0;
+        self.selected_comment_idx = 0;
+        self.comment_popup_open = false;
+        self.comment_popup_scroll = 0;
     }
 
     pub fn on_search_results(&mut self, results: Vec<AurPackage>) {
@@ -179,6 +190,17 @@ impl App {
 
     pub fn scroll_comments_up(&mut self) {
         self.comments_scroll = self.comments_scroll.saturating_sub(1);
+    }
+
+    pub fn comment_select_next(&mut self) {
+        if !self.comments.is_empty() {
+            self.selected_comment_idx =
+                (self.selected_comment_idx + 1).min(self.comments.len() - 1);
+        }
+    }
+
+    pub fn comment_select_prev(&mut self) {
+        self.selected_comment_idx = self.selected_comment_idx.saturating_sub(1);
     }
 
     pub fn scroll_pkgbuild_down(&mut self, max: usize) {
