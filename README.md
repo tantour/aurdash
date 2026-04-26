@@ -99,13 +99,6 @@ Most AUR helpers stop at installation.
 
 ---
 
-## 🛠️ Installation
-
-    git clone https://github.com/yourusername/aurdash.git
-    cd aurdash
-    makepkg -si
-
----
 
 ## 🔐 Security Philosophy
 
