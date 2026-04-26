@@ -29,8 +29,8 @@ scraper = "0.21"
 # Fuzzy search
 nucleo = "0.5"
 
-# Security scanning
-aur-scanner-core = "0.1.1"
+# Security scanning — hand-rolled, no false-positive-prone third party scanner
+regex = "1"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -45,7 +45,6 @@ chrono = "0.4"
 dirs = "5"
 toml = "0.8"
 unicode-width = "0.1"
-tempfile = "3.27.0"
 
 [profile.release]
 opt-level = 3
