@@ -186,7 +186,7 @@ fn render_pkgbuild_overlay(f: &mut Frame, app: &App, area: Rect) {
     let pkg_name = app
         .selected_pkg
         .as_ref()
-        .map(|p| p.name.as_str())
+        .map(|p| p.name())
         .unwrap_or("PKGBUILD");
 
     let pkgbuild = Paragraph::new(content)

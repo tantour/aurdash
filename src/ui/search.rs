@@ -1,4 +1,5 @@
 use crate::app::{App, LoadState, Panel};
+use crate::aur::PkgEntry;
 use crate::ui::theme::*;
 use ratatui::{
     layout::Rect,
@@ -20,7 +21,7 @@ pub fn render_search_bar(f: &mut Frame, app: &App, area: Rect) {
     };
 
     let query = app.search_input.value();
-    let placeholder = if query.is_empty() { "Search AUR packages..." } else { "" };
+    let placeholder = if query.is_empty() { "Search packages (AUR + official repos)…" } else { "" };
 
     let input_text = if query.is_empty() {
         Line::from(vec![
@@ -77,28 +78,50 @@ pub fn render_results_list(f: &mut Frame, app: &App, area: Rect) {
             let name_color = if is_selected { LAVENDER } else { TEXT };
             let ver_color = if is_selected { TEAL } else { SUBTEXT0 };
 
-            // Truncate name to fit
-            let max_name = (area.width as usize).saturating_sub(10).min(24);
-            let name = if pkg.name.len() > max_name {
-                format!("{}…", &pkg.name[..max_name.saturating_sub(1)])
+            let name_str = pkg.name();
+            let ver_str = pkg.version();
+
+            // Truncate name to fit (reserve space for badge + version)
+            let max_name = (area.width as usize).saturating_sub(14).min(24);
+            let name = if name_str.len() > max_name {
+                format!("{}…", &name_str[..max_name.saturating_sub(1)])
             } else {
-                pkg.name.clone()
+                name_str.to_string()
             };
 
-            let ver = pkg.version.as_str();
-            let ver_short = if ver.len() > 12 {
-                &ver[..12]
+            let ver_short = if ver_str.len() > 12 {
+                &ver_str[..12]
             } else {
-                ver
+                ver_str
             };
 
             let prefix = if is_selected { "▶ " } else { "  " };
 
+            // Badge: show repo name for official pkgs, AUR icon for AUR
+            let (badge_text, badge_color) = match pkg {
+                PkgEntry::Repo(r) => {
+                    let label = format!("[{}]", r.repo.to_uppercase());
+                    (label, GREEN)
+                }
+                PkgEntry::Aur(_) => (String::from("[AUR]"), MAUVE),
+            };
+
+            // Installed indicator
+            let installed_span = if pkg.is_installed() {
+                Span::styled(ICON_CHECK, Style::default().fg(GREEN))
+            } else {
+                Span::raw(" ")
+            };
+
             Line::from(vec![
                 Span::styled(prefix, Style::default().fg(MAUVE)),
+                Span::styled(badge_text, Style::default().fg(badge_color).add_modifier(Modifier::BOLD)),
+                Span::raw(" "),
                 Span::styled(name, Style::default().fg(name_color)),
                 Span::raw(" "),
                 Span::styled(ver_short, Style::default().fg(ver_color)),
+                Span::raw(" "),
+                installed_span,
             ])
             .into()
         })
@@ -144,7 +167,7 @@ pub fn render_results_list(f: &mut Frame, app: &App, area: Rect) {
     if app.results.is_empty() && app.search_state == LoadState::Idle {
         let empty = Paragraph::new(Line::from(vec![
             Span::styled(ICON_SEARCH, Style::default().fg(OVERLAY0)),
-            Span::styled(" Type to search AUR", Style::default().fg(OVERLAY0).add_modifier(Modifier::ITALIC)),
+            Span::styled(" Type to search AUR + official repos", Style::default().fg(OVERLAY0).add_modifier(Modifier::ITALIC)),
         ]))
         .block(
             Block::default()

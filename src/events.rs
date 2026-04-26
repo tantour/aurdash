@@ -1,4 +1,5 @@
 use crate::app::{App, AppEvent, LoadState, Panel};
+use crate::aur::PkgEntry;
 use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
@@ -7,10 +8,10 @@ use tui_input::backend::crossterm::EventHandler;
 pub enum Action {
     /// Normal handled action
     Continue,
-    /// Trigger a new AUR search
+    /// Trigger a new search (repo + AUR)
     Search(String),
-    /// Load detail for selected package (score + comments + pkgbuild)
-    LoadDetail(String),
+    /// Load detail for selected package
+    LoadDetail(PkgEntry),
     /// Install selected package
     Install(String),
     /// Quit
@@ -28,28 +29,39 @@ pub fn handle_event(app: &mut App, event: &Event) -> Action {
 pub fn handle_app_event(app: &mut App, event: AppEvent) -> Action {
     match event {
         AppEvent::SearchResults(results) => {
-            let pkg_name = results.first().map(|p| p.name.clone());
+            let first = results.first().cloned();
             app.on_search_results(results);
-            if let Some(name) = pkg_name {
-                return Action::LoadDetail(name);
+            if let Some(entry) = first {
+                return Action::LoadDetail(entry);
             }
         }
         AppEvent::SecurityScore(pkg, score) => {
-            if app.selected_pkg.as_ref().map(|p| &p.name) == Some(&pkg) {
+            if app.selected_pkg.as_ref().map(|p| p.name()) == Some(pkg.as_str()) {
                 app.security_score = Some(score);
                 app.security_state = LoadState::Done;
             }
         }
         AppEvent::Comments(pkg, comments) => {
-            if app.selected_pkg.as_ref().map(|p| &p.name) == Some(&pkg) {
+            if app.selected_pkg.as_ref().map(|p| p.name()) == Some(pkg.as_str()) {
                 app.comments = comments;
                 app.comments_state = LoadState::Done;
             }
         }
         AppEvent::Pkgbuild(pkg, text) => {
-            if app.selected_pkg.as_ref().map(|p| &p.name) == Some(&pkg) {
+            if app.selected_pkg.as_ref().map(|p| p.name()) == Some(pkg.as_str()) {
                 app.pkgbuild_text = Some(text);
                 app.pkgbuild_state = LoadState::Done;
+            }
+        }
+        AppEvent::RepoInfo(pkg, info) => {
+            if app.selected_pkg.as_ref().map(|p| p.name()) == Some(pkg.as_str()) {
+                // Update the selected_pkg and results entry with enriched info
+                let enriched = PkgEntry::Repo(info);
+                if let Some(r) = app.results.get_mut(app.selected_idx) {
+                    *r = enriched.clone();
+                }
+                app.selected_pkg = Some(enriched);
+                app.security_state = LoadState::Done;
             }
         }
         AppEvent::InstallDone(success, log) => {
@@ -95,7 +107,6 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
 
     // Escape - close popup first, then go back / close overlay
     if key.code == KeyCode::Esc {
-        // If comment popup is open, close it and stay on Comments panel
         if app.comment_popup_open {
             app.comment_popup_open = false;
             app.comment_popup_scroll = 0;
@@ -134,7 +145,6 @@ fn handle_key(app: &mut App, key: &KeyEvent) -> Action {
         Panel::Pkgbuild => handle_pkgbuild_key(app, key),
         Panel::InstallLog => handle_installlog_key(app, key),
         Panel::Help => {
-            // any key closes help
             app.active_panel = Panel::Results;
             Action::Continue
         }
@@ -158,7 +168,6 @@ fn handle_search_key(app: &mut App, key: &KeyEvent) -> Action {
         _ => {}
     }
 
-    // Feed to tui-input
     let prev = app.search_input.value().to_string();
     app.search_input.handle_event(&Event::Key(*key));
     let current = app.search_input.value().to_string();
@@ -178,19 +187,23 @@ fn handle_search_key(app: &mut App, key: &KeyEvent) -> Action {
     Action::Continue
 }
 
+fn load_detail_for_selected(app: &App) -> Action {
+    if let Some(entry) = app.results.get(app.selected_idx) {
+        Action::LoadDetail(entry.clone())
+    } else {
+        Action::Continue
+    }
+}
+
 fn handle_results_key(app: &mut App, key: &KeyEvent) -> Action {
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
             app.select_prev();
-            if let Some(name) = app.selected_pkg.as_ref().map(|p| p.name.clone()) {
-                return Action::LoadDetail(name);
-            }
+            return load_detail_for_selected(app);
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.select_next();
-            if let Some(name) = app.selected_pkg.as_ref().map(|p| p.name.clone()) {
-                return Action::LoadDetail(name);
-            }
+            return load_detail_for_selected(app);
         }
         KeyCode::Enter | KeyCode::Right | KeyCode::Char('l') => {
             app.active_panel = Panel::Detail;
@@ -207,10 +220,15 @@ fn handle_results_key(app: &mut App, key: &KeyEvent) -> Action {
             }
         }
         KeyCode::Char('p') => {
-            app.active_panel = Panel::Pkgbuild;
+            // Only for AUR packages
+            if app.selected_pkg.as_ref().map(|p| p.is_aur()).unwrap_or(false) {
+                app.active_panel = Panel::Pkgbuild;
+            }
         }
         KeyCode::Char('c') => {
-            app.active_panel = Panel::Comments;
+            if app.selected_pkg.as_ref().map(|p| p.is_aur()).unwrap_or(false) {
+                app.active_panel = Panel::Comments;
+            }
         }
         _ => {}
     }
@@ -221,15 +239,11 @@ fn handle_detail_key(app: &mut App, key: &KeyEvent) -> Action {
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
             app.select_prev();
-            if let Some(name) = app.selected_pkg.as_ref().map(|p| p.name.clone()) {
-                return Action::LoadDetail(name);
-            }
+            return load_detail_for_selected(app);
         }
         KeyCode::Down | KeyCode::Char('j') => {
             app.select_next();
-            if let Some(name) = app.selected_pkg.as_ref().map(|p| p.name.clone()) {
-                return Action::LoadDetail(name);
-            }
+            return load_detail_for_selected(app);
         }
         KeyCode::Left | KeyCode::Char('h') => {
             app.active_panel = Panel::Results;
@@ -243,10 +257,14 @@ fn handle_detail_key(app: &mut App, key: &KeyEvent) -> Action {
             }
         }
         KeyCode::Char('p') => {
-            app.active_panel = Panel::Pkgbuild;
+            if app.selected_pkg.as_ref().map(|p| p.is_aur()).unwrap_or(false) {
+                app.active_panel = Panel::Pkgbuild;
+            }
         }
         KeyCode::Char('c') => {
-            app.active_panel = Panel::Comments;
+            if app.selected_pkg.as_ref().map(|p| p.is_aur()).unwrap_or(false) {
+                app.active_panel = Panel::Comments;
+            }
         }
         _ => {}
     }
@@ -254,7 +272,6 @@ fn handle_detail_key(app: &mut App, key: &KeyEvent) -> Action {
 }
 
 fn handle_comments_key(app: &mut App, key: &KeyEvent) -> Action {
-    // If popup is open, handle popup navigation
     if app.comment_popup_open {
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => {
@@ -265,7 +282,6 @@ fn handle_comments_key(app: &mut App, key: &KeyEvent) -> Action {
                 app.comment_popup_scroll = app.comment_popup_scroll.saturating_sub(1);
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                // Max scroll is bounded in render, just increment freely
                 app.comment_popup_scroll += 1;
             }
             _ => {}
@@ -273,12 +289,9 @@ fn handle_comments_key(app: &mut App, key: &KeyEvent) -> Action {
         return Action::Continue;
     }
 
-    // Normal comment list navigation
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
             app.comment_select_prev();
-            // sync scroll so selected stays visible (render handles it, but
-            // we also keep comments_scroll in sync for mouse scroll baseline)
             app.comments_scroll = app.selected_comment_idx;
         }
         KeyCode::Down | KeyCode::Char('j') => {
@@ -335,7 +348,6 @@ fn handle_installlog_key(app: &mut App, key: &KeyEvent) -> Action {
 }
 
 fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
-    // If comment popup is open, mouse scrolls the popup
     if app.comment_popup_open {
         match mouse.kind {
             MouseEventKind::ScrollDown => {
@@ -353,9 +365,7 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
         MouseEventKind::ScrollDown => match app.active_panel {
             Panel::Results | Panel::Detail => {
                 app.select_next();
-                if let Some(name) = app.selected_pkg.as_ref().map(|p| p.name.clone()) {
-                    return Action::LoadDetail(name);
-                }
+                return load_detail_for_selected(app);
             }
             Panel::Comments => {
                 app.comment_select_next();
@@ -379,9 +389,7 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
         MouseEventKind::ScrollUp => match app.active_panel {
             Panel::Results | Panel::Detail => {
                 app.select_prev();
-                if let Some(name) = app.selected_pkg.as_ref().map(|p| p.name.clone()) {
-                    return Action::LoadDetail(name);
-                }
+                return load_detail_for_selected(app);
             }
             Panel::Comments => {
                 app.comment_select_prev();
@@ -394,26 +402,16 @@ fn handle_mouse(app: &mut App, mouse: &MouseEvent) -> Action {
             _ => {}
         },
         MouseEventKind::Down(MouseButton::Left) => {
-            // Click on result list area (approximate: rows 2..N-3, col 0..38)
             if mouse.column < 38 && mouse.row > 2 {
                 let clicked_idx = app.results_scroll + (mouse.row as usize).saturating_sub(3);
                 if clicked_idx < app.results.len() {
                     app.selected_idx = clicked_idx;
                     app.active_panel = Panel::Results;
                     app.on_select_change();
-                    if let Some(name) = app.selected_pkg.as_ref().map(|p| p.name.clone()) {
-                        return Action::LoadDetail(name);
-                    }
+                    return load_detail_for_selected(app);
                 }
             }
-
-            // Click in comments panel (right side, lower half — approximate row > terminal_height*0.6+3)
-            // We detect any click with col >= 38 in the lower portion as a comment click
             if app.active_panel == Panel::Comments && mouse.column >= 38 {
-                // Each comment card is roughly 3-4 lines tall; approximate which comment was clicked
-                // by mapping click row relative to comments panel top
-                // The panel starts after the header (row 3) and takes lower ~40% of height
-                // We'll just open popup for whichever comment is currently selected (safe approach)
                 if !app.comments.is_empty() {
                     app.comment_popup_open = true;
                     app.comment_popup_scroll = 0;

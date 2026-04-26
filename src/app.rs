@@ -1,4 +1,4 @@
-use crate::aur::{AurPackage, comments::AurComment};
+use crate::aur::{PkgEntry, comments::AurComment};
 use crate::security::SecurityScore;
 use tui_input::Input;
 
@@ -23,14 +23,16 @@ pub enum LoadState {
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
-    /// AUR search results came back
-    SearchResults(Vec<AurPackage>),
+    /// Combined search results (repo + AUR merged)
+    SearchResults(Vec<PkgEntry>),
     /// Security score computed
     SecurityScore(String, SecurityScore),
     /// Comments fetched
     Comments(String, Vec<AurComment>),
     /// PKGBUILD text fetched
     Pkgbuild(String, String),
+    /// Repo package extended info fetched
+    RepoInfo(String, crate::aur::RepoPackage),
     /// Install finished
     InstallDone(bool, String),
     /// Paru availability check
@@ -47,12 +49,12 @@ pub struct App {
     pub last_query: String,
 
     // --- Results ---
-    pub results: Vec<AurPackage>,
+    pub results: Vec<PkgEntry>,
     pub selected_idx: usize,
     pub results_scroll: usize,
 
     // --- Detail ---
-    pub selected_pkg: Option<AurPackage>,
+    pub selected_pkg: Option<PkgEntry>,
     pub security_score: Option<SecurityScore>,
     pub comments: Vec<AurComment>,
     pub pkgbuild_text: Option<String>,
@@ -118,7 +120,7 @@ impl App {
     }
 
     pub fn selected_pkg_name(&self) -> Option<&str> {
-        self.results.get(self.selected_idx).map(|p| p.name.as_str())
+        self.results.get(self.selected_idx).map(|p| p.name())
     }
 
     pub fn select_next(&mut self) {
@@ -148,9 +150,15 @@ impl App {
         self.selected_comment_idx = 0;
         self.comment_popup_open = false;
         self.comment_popup_scroll = 0;
+
+        // Repo packages: mark comments/pkgbuild as not applicable immediately
+        if let Some(PkgEntry::Repo(_)) = &self.selected_pkg {
+            self.comments_state = LoadState::Done;
+            self.pkgbuild_state = LoadState::Done;
+        }
     }
 
-    pub fn on_search_results(&mut self, results: Vec<AurPackage>) {
+    pub fn on_search_results(&mut self, results: Vec<PkgEntry>) {
         self.results = results;
         self.selected_idx = 0;
         self.results_scroll = 0;
@@ -160,6 +168,11 @@ impl App {
             self.security_state = LoadState::Loading;
             self.comments_state = LoadState::Loading;
             self.pkgbuild_state = LoadState::Loading;
+            // For repo pkg at top, skip those
+            if let Some(PkgEntry::Repo(_)) = &self.selected_pkg {
+                self.comments_state = LoadState::Done;
+                self.pkgbuild_state = LoadState::Done;
+            }
         }
     }
 
