@@ -11,6 +11,8 @@
 
   ### ⚡ Install instantly
       yay -S aurdash-bin
+  ### then type
+      aurdash
 </div>
 
 ---
