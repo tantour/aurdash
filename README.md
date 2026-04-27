@@ -45,7 +45,6 @@ Every AUR package gets a **security score** based on:
 - Maintainer reputation  
 - Update frequency  
 - Community signals (votes, popularity)  
-- Optional AI-assisted analysis  
 
 > Avoid sketchy packages without manually digging through everything.
 
